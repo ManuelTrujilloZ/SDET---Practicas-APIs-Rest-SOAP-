@@ -1,0 +1,271 @@
+{
+  "info": {
+    "name": "Practice - REST vs SOAP",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "REST example (NutriApp) + SOAP example (/api/soap). Includes status + headers + basic schema checks."
+  },
+  "item": [
+    {
+      "name": "REST - NutriApp",
+      "item": [
+        {
+          "name": "Login - POST /api/login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200/201', function () { pm.expect([200,201]).to.include(pm.response.code); });",
+                  "pm.test('Content-Type JSON', function () { var ct = pm.response.headers.get('Content-Type') || ''; pm.expect(ct.toLowerCase()).to.include('application/json'); });",
+                  "// Optional Cache-Control check (dev may not include it)",
+                  "pm.test('Cache-Control present (soft)', function () { var has = pm.response.headers.has('Cache-Control'); if (!has) console.warn('Cache-Control missing'); pm.expect(true).to.be.true; });",
+                  "var j = pm.response.json();",
+                  "pm.test('Login schema (basic)', function () { pm.expect(j).to.be.an('object'); pm.expect(j).to.have.property('user'); });",
+                  "if (j && (j.token || j.accessToken)) pm.environment.set('token', j.token || j.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List - GET /api/dishes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/dishes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('Content-Type JSON', () => { const ct = pm.response.headers.get('Content-Type') || ''; pm.expect(ct.toLowerCase()).to.include('application/json'); });",
+                  "const d = pm.response.json();",
+                  "const arr = Array.isArray(d) ? d : (Array.isArray(d.dishes) ? d.dishes : (Array.isArray(d.data) ? d.data : (Array.isArray(d.items) ? d.items : null)));",
+                  "pm.test('Dishes array (direct or wrapped)', () => { if(!arr) console.log('Unexpected keys:', Object.keys(d)); pm.expect(arr).to.not.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create - POST /api/dishes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Dish {{ts}}\",\n  \"description\": \"Created from Postman\",\n  \"quickPrep\": true,\n  \"prepTime\": 5,\n  \"cookTime\": 10,\n  \"imageUrl\": null,\n  \"steps\": [\"Paso 1\", \"Paso 2\"],\n  \"calories\": 250\n}"
+            },
+            "url": "{{baseUrl}}/api/dishes"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('ts', Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200/201', function () { pm.expect([200,201]).to.include(pm.response.code); });",
+                  "pm.test('Content-Type JSON', function () { var ct = pm.response.headers.get('Content-Type') || ''; pm.expect(ct.toLowerCase()).to.include('application/json'); });",
+                  "var j = pm.response.json();",
+                  "var id = (j && (j.id || (j.dish && j.dish.id) || (j.data && j.data.id))) || null;",
+                  "pm.test('Create returns id', function () { pm.expect(id).to.not.eql(null); });",
+                  "pm.environment.set('dishId', id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update - PUT /api/dishes/:id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated from Postman\",\n  \"description\": \"Updated\",\n  \"quickPrep\": false,\n  \"prepTime\": 10,\n  \"cookTime\": 15,\n  \"imageUrl\": null,\n  \"steps\": [\"Paso 1\", \"Paso 2\", \"Paso 3\"],\n  \"calories\": 300\n}"
+            },
+            "url": "{{baseUrl}}/api/dishes/{{dishId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('dishId is set', function(){ pm.expect(pm.environment.get('dishId')).to.not.be.oneOf([null, undefined, '', 'null']); });",
+                  "pm.test('Status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Content-Type JSON', function () { var ct = pm.response.headers.get('Content-Type') || ''; pm.expect(ct.toLowerCase()).to.include('application/json'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete - DELETE /api/dishes/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/dishes/{{dishId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('dishId is set', function(){ pm.expect(pm.environment.get('dishId')).to.not.be.oneOf([null, undefined, '', 'null']); });",
+                  "pm.test('Status 200/204', function () { pm.expect([200,204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SOAP - Local",
+      "item": [
+        {
+          "name": "WSDL - GET /api/soap?wsdl",
+          "request": {
+            "method": "GET",
+            "url": "{{soapUrl}}?wsdl"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Content-Type XML', function () { var ct = pm.response.headers.get('Content-Type') || ''; pm.expect(ct.toLowerCase()).to.include('xml'); });",
+                  "pm.test('WSDL has <definitions>', function(){ pm.expect(pm.response.text()).to.include('<definitions'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - SOAPAction Add (happy path)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              },
+              {
+                "key": "SOAPAction",
+                "value": "Add"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n               xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"\n               xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\n  <soap:Body>\n    <Add xmlns=\"http://tempuri.org/\">\n      <intA>{{intA}}</intA>\n      <intB>{{intB}}</intB>\n    </Add>\n  </soap:Body>\n</soap:Envelope>"
+            },
+            "url": "{{soapUrl}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Content-Type XML', function () { var ct = pm.response.headers.get('Content-Type') || ''; pm.expect(ct.toLowerCase()).to.include('xml'); });",
+                  "var text = pm.response.text();",
+                  "pm.test('No SOAP Fault', function(){ pm.expect(text).to.not.include('<soap:Fault>'); });",
+                  "pm.test('AddResult equals expected', function () {",
+                  "  var m = text.match(/<AddResult>(-?\\d+)<\\/AddResult>/);",
+                  "  pm.expect(m, 'AddResult not found').to.not.be.null;",
+                  "  pm.expect(String(m[1])).to.eql(String(pm.environment.get('expectedSum')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - Missing SOAPAction (negative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n               xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"\n               xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\n  <soap:Body>\n    <Add xmlns=\"http://tempuri.org/\">\n      <intA>1</intA>\n      <intB>1</intB>\n    </Add>\n  </soap:Body>\n</soap:Envelope>"
+            },
+            "url": "{{soapUrl}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 500 (Fault)', function () { pm.expect(pm.response.code).to.eql(500); });",
+                  "var text = pm.response.text();",
+                  "pm.test('SOAP Fault present', function(){ pm.expect(text).to.include('<soap:Fault>'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
